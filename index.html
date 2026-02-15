@@ -12,7 +12,7 @@
     <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
 
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         body { font-family: 'Inter', sans-serif; background-color: #e5e7eb; }
         
         /* Custom Scrollbar */
@@ -55,6 +55,29 @@
             min-width: 50px;
             white-space: pre-wrap;
         }
+
+        /* Toast Notification */
+        .toast {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            background: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            animation: slideIn 0.3s ease-out;
+            z-index: 1000;
+        }
+        @keyframes slideIn {
+            from { transform: translateX(400px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        .toast.success { border-left: 4px solid #10b981; }
+        .toast.error { border-left: 4px solid #ef4444; }
+        .toast.info { border-left: 4px solid #3b82f6; }
     </style>
 </head>
 <body class="h-screen flex flex-col overflow-hidden text-gray-800">
@@ -78,27 +101,29 @@
             
             <!-- Center: Tools -->
             <div class="flex space-x-1 bg-gray-100 p-1 rounded-lg shadow-inner relative" id="toolbar">
-                <button onclick="setMode('cursor')" id="btn-cursor" class="p-2 rounded hover:bg-white transition tool-active" title="Select / Move / Resize">
+                <button onclick="setMode('cursor')" id="btn-cursor" class="p-2 rounded hover:bg-white transition tool-active" title="Select / Move / Resize (V)">
                     <i data-lucide="mouse-pointer-2" class="w-5 h-5"></i>
                 </button>
-                <button onclick="setMode('text')" id="btn-text" class="p-2 rounded hover:bg-white transition" title="Add Text">
+                <button onclick="setMode('text')" id="btn-text" class="p-2 rounded hover:bg-white transition" title="Add Text (T)">
                     <i data-lucide="type" class="w-5 h-5"></i>
                 </button>
-                <button onclick="setMode('draw')" id="btn-draw" class="p-2 rounded hover:bg-white transition" title="Draw">
+                <button onclick="setMode('draw')" id="btn-draw" class="p-2 rounded hover:bg-white transition" title="Draw (D)">
                     <i data-lucide="pen-tool" class="w-5 h-5"></i>
                 </button>
                 
                 <!-- STAMP TOOL -->
                 <div class="relative">
-                    <button onclick="toggleStampMenu()" id="btn-stamp" class="p-2 rounded hover:bg-white transition" title="Add Stamp">
+                    <button onclick="toggleStampMenu()" id="btn-stamp" class="p-2 rounded hover:bg-white transition" title="Add Stamp (S)">
                         <i data-lucide="stamp" class="w-5 h-5"></i>
                     </button>
                     <!-- Dropdown Menu -->
                     <div id="stamp-menu" class="hidden absolute top-full left-1/2 transform -translate-x-1/2 mt-2 w-48 bg-white rounded-md shadow-lg z-50 border border-gray-200 p-1">
-                        <button onclick="addStamp('APPROVED', 'green')" class="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm font-bold text-green-600 rounded">APPROVED</button>
-                        <button onclick="addStamp('REJECTED', 'red')" class="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm font-bold text-red-600 rounded">REJECTED</button>
-                        <button onclick="addStamp('DRAFT', 'gray')" class="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm font-bold text-gray-500 rounded">DRAFT</button>
-                        <button onclick="addStamp('CONFIDENTIAL', 'red')" class="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm font-bold text-red-600 rounded">CONFIDENTIAL</button>
+                        <button onclick="addStamp('APPROVED', '#10b981')" class="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm font-bold text-green-600 rounded">APPROVED</button>
+                        <button onclick="addStamp('REJECTED', '#ef4444')" class="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm font-bold text-red-600 rounded">REJECTED</button>
+                        <button onclick="addStamp('DRAFT', '#6b7280')" class="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm font-bold text-gray-500 rounded">DRAFT</button>
+                        <button onclick="addStamp('CONFIDENTIAL', '#dc2626')" class="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm font-bold text-red-700 rounded">CONFIDENTIAL</button>
+                        <button onclick="addStamp('URGENT', '#f59e0b')" class="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm font-bold text-orange-600 rounded">URGENT</button>
+                        <button onclick="addStamp('VOID', '#9ca3af')" class="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm font-bold text-gray-400 rounded">VOID</button>
                         <div class="border-t my-1"></div>
                         <button onclick="document.getElementById('stamp-upload').click()" class="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm flex items-center gap-2 rounded">
                             <i data-lucide="image-plus" class="w-4 h-4"></i> Import PNG
@@ -106,15 +131,22 @@
                     </div>
                 </div>
 
-                <button onclick="setMode('whiteout')" id="btn-whiteout" class="p-2 rounded hover:bg-white transition text-red-500" title="Eraser / Whiteout">
+                <button onclick="setMode('whiteout')" id="btn-whiteout" class="p-2 rounded hover:bg-white transition text-red-500" title="Eraser / Whiteout (E)">
                     <i data-lucide="eraser" class="w-5 h-5"></i>
                 </button>
                 <div class="w-px bg-gray-300 mx-2"></div>
                 <button onclick="openSignatureModal()" class="p-2 rounded hover:bg-white transition text-purple-600" title="Signature">
                     <i data-lucide="signature" class="w-5 h-5"></i>
                 </button>
-                <button onclick="document.getElementById('image-upload').click()" class="p-2 rounded hover:bg-white transition text-green-600" title="Insert Image">
+                <button onclick="document.getElementById('image-upload').click()" class="p-2 rounded hover:bg-white transition text-green-600" title="Insert Image (I)">
                     <i data-lucide="image" class="w-5 h-5"></i>
+                </button>
+                <div class="w-px bg-gray-300 mx-2"></div>
+                <button onclick="undo()" id="btn-undo" class="p-2 rounded hover:bg-white transition text-gray-600 disabled:opacity-30" title="Undo (Ctrl+Z)" disabled>
+                    <i data-lucide="undo" class="w-5 h-5"></i>
+                </button>
+                <button onclick="redo()" id="btn-redo" class="p-2 rounded hover:bg-white transition text-gray-600 disabled:opacity-30" title="Redo (Ctrl+Y)" disabled>
+                    <i data-lucide="redo" class="w-5 h-5"></i>
                 </button>
             </div>
 
@@ -158,6 +190,15 @@
                     </button>
                 </div>
 
+                <!-- Stamp Properties -->
+                <div id="prop-stamp" class="hidden items-center space-x-3">
+                    <span class="font-bold text-gray-500 uppercase">Stamp:</span>
+                    <input type="color" id="stamp-color" value="#10b981" class="h-6 w-6 border-none cursor-pointer rounded" onchange="updateSelectedStampProp()">
+                    <button onclick="deleteSelectedAnnotation()" class="text-red-500 hover:text-red-700 ml-2" title="Delete Selected">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    </button>
+                </div>
+
                 <!-- Eraser Props -->
                 <div id="prop-whiteout" class="hidden items-center space-x-3">
                     <span class="font-bold text-gray-500 uppercase">Eraser Size:</span>
@@ -167,6 +208,8 @@
                  <div id="prop-draw" class="hidden items-center space-x-3">
                     <span class="font-bold text-gray-500 uppercase">Pen:</span>
                     <input type="color" id="pen-color" value="#0000FF" class="h-6 w-6 border-none cursor-pointer rounded">
+                    <input type="range" id="pen-width" min="1" max="10" value="2" class="w-20 h-1.5 bg-gray-300 rounded-lg appearance-none cursor-pointer">
+                    <span class="text-xs text-gray-500">Width: <span id="pen-width-display">2</span>px</span>
                 </div>
                 <!-- Default / Info -->
                 <div id="prop-default" class="flex items-center space-x-3 text-gray-500">
@@ -176,11 +219,11 @@
 
             <!-- ZOOM -->
             <div class="flex items-center space-x-2 bg-white px-2 py-1 rounded border border-gray-300 shadow-sm">
-                <button onclick="zoomOut()" class="p-1 hover:bg-gray-100 rounded text-gray-600" title="Zoom Out">
+                <button onclick="zoomOut()" class="p-1 hover:bg-gray-100 rounded text-gray-600" title="Zoom Out (-)">
                     <i data-lucide="minus" class="w-4 h-4"></i>
                 </button>
                 <span id="zoom-level" class="w-12 text-center font-mono font-medium text-gray-700">100%</span>
-                <button onclick="zoomIn()" class="p-1 hover:bg-gray-100 rounded text-gray-600" title="Zoom In">
+                <button onclick="zoomIn()" class="p-1 hover:bg-gray-100 rounded text-gray-600" title="Zoom In (+)">
                     <i data-lucide="plus" class="w-4 h-4"></i>
                 </button>
             </div>
@@ -196,6 +239,14 @@
             <div class="p-3 border-b border-gray-200 bg-white shadow-sm sticky top-0 z-10">
                 <div class="flex justify-between items-center mb-2">
                     <span class="font-semibold text-xs text-gray-600 uppercase tracking-wider">Pages</span>
+                    <div class="flex gap-1">
+                        <button onclick="prevPage()" class="p-1 hover:bg-gray-100 rounded text-gray-600" title="Previous Page (←)">
+                            <i data-lucide="chevron-left" class="w-4 h-4"></i>
+                        </button>
+                        <button onclick="nextPage()" class="p-1 hover:bg-gray-100 rounded text-gray-600" title="Next Page (→)">
+                            <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                        </button>
+                    </div>
                 </div>
                 <!-- Insert Actions -->
                 <div class="grid grid-cols-2 gap-2">
@@ -221,8 +272,13 @@
                     <div class="bg-white p-4 rounded-full inline-block shadow-sm mb-4">
                         <i data-lucide="upload-cloud" class="w-12 h-12 text-blue-500"></i>
                     </div>
-                    <h2 class="text-2xl font-bold text-gray-800 mb-2">WebPDF Editor</h2>
-                    <p class="text-gray-500 mb-6 text-sm">Upload PDF to start editing.</p>
+                    <h2 class="text-2xl font-bold text-gray-800 mb-2">WebPDF Editor Pro</h2>
+                    <p class="text-gray-500 mb-4 text-sm">Upload PDF to start editing.</p>
+                    <p class="text-xs text-gray-400 mb-6">
+                        <strong>Keyboard Shortcuts:</strong><br>
+                        V: Cursor | T: Text | D: Draw | S: Stamp | E: Eraser | I: Image<br>
+                        Ctrl+Z: Undo | Ctrl+Y: Redo | Delete: Remove | ←→: Navigate Pages
+                    </p>
                     <button onclick="document.getElementById('file-upload').click()" class="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 shadow-md transition transform hover:-translate-y-0.5">
                         Select PDF File
                     </button>
@@ -312,6 +368,10 @@
         let annotations = []; 
         let selectedAnnIndex = -1;
         
+        // Undo/Redo
+        let undoStack = [];
+        let redoStack = [];
+        
         // Interactions
         let isDragging = false;
         let isResizing = false;
@@ -336,8 +396,105 @@
             size: document.getElementById('text-size'),
             color: document.getElementById('text-color'),
             eraser: document.getElementById('eraser-size'),
-            pen: document.getElementById('pen-color')
+            pen: document.getElementById('pen-color'),
+            penWidth: document.getElementById('pen-width'),
+            stampColor: document.getElementById('stamp-color')
         };
+
+        // Update pen width display
+        inputs.penWidth.oninput = () => {
+            document.getElementById('pen-width-display').textContent = inputs.penWidth.value;
+        };
+
+        // --- Toast Notifications ---
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `
+                <i data-lucide="${type === 'success' ? 'check-circle' : type === 'error' ? 'alert-circle' : 'info'}" class="w-5 h-5 ${type === 'success' ? 'text-green-600' : type === 'error' ? 'text-red-600' : 'text-blue-600'}"></i>
+                <span class="font-medium">${message}</span>
+            `;
+            document.body.appendChild(toast);
+            lucide.createIcons();
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateX(400px)';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // --- Undo/Redo System ---
+        function saveState() {
+            undoStack.push(JSON.parse(JSON.stringify(annotations)));
+            redoStack = []; // Clear redo when new action
+            updateUndoRedoButtons();
+        }
+
+        function undo() {
+            if (undoStack.length === 0) return;
+            redoStack.push(JSON.parse(JSON.stringify(annotations)));
+            annotations = undoStack.pop();
+            selectedAnnIndex = -1;
+            updateToolbarForSelection();
+            redrawOverlay();
+            updateUndoRedoButtons();
+            showToast('Undo', 'info');
+        }
+
+        function redo() {
+            if (redoStack.length === 0) return;
+            undoStack.push(JSON.parse(JSON.stringify(annotations)));
+            annotations = redoStack.pop();
+            selectedAnnIndex = -1;
+            updateToolbarForSelection();
+            redrawOverlay();
+            updateUndoRedoButtons();
+            showToast('Redo', 'info');
+        }
+
+        function updateUndoRedoButtons() {
+            document.getElementById('btn-undo').disabled = undoStack.length === 0;
+            document.getElementById('btn-redo').disabled = redoStack.length === 0;
+        }
+
+        // --- Keyboard Shortcuts ---
+        window.addEventListener('keydown', (e) => {
+            // Ignore if typing in input
+            if (textInputContainer.style.display === 'block') return;
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+            // Tool shortcuts
+            if (e.key.toLowerCase() === 'v') setMode('cursor');
+            else if (e.key.toLowerCase() === 't') setMode('text');
+            else if (e.key.toLowerCase() === 'd') setMode('draw');
+            else if (e.key.toLowerCase() === 's' && !e.ctrlKey && !e.metaKey) setMode('stamp');
+            else if (e.key.toLowerCase() === 'e') setMode('whiteout');
+            else if (e.key.toLowerCase() === 'i') document.getElementById('image-upload').click();
+            
+            // Undo/Redo
+            else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+                e.preventDefault();
+                undo();
+            }
+            else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+                e.preventDefault();
+                redo();
+            }
+            
+            // Delete
+            else if ((e.key === 'Delete' || e.key === 'Backspace') && selectedAnnIndex !== -1) {
+                e.preventDefault();
+                deleteSelectedAnnotation();
+            }
+            
+            // Navigation
+            else if (e.key === 'ArrowLeft') prevPage();
+            else if (e.key === 'ArrowRight') nextPage();
+            
+            // Zoom
+            else if (e.key === '+' || e.key === '=') zoomIn();
+            else if (e.key === '-') zoomOut();
+        });
 
         // --- Core Functions ---
         async function initPdf() {
@@ -346,16 +503,23 @@
                 totalPages = pdfDoc.getPageCount();
                 pageNum = 1;
                 annotations = [];
+                undoStack = [];
+                redoStack = [];
                 pdfScale = 1.0;
                 updateZoomDisplay();
+                updateUndoRedoButtons();
                 
                 document.getElementById('empty-state').classList.add('hidden');
                 sidebarPanel.classList.remove('hidden'); sidebarPanel.classList.add('flex');
                 document.getElementById('editor-area').classList.remove('hidden'); document.getElementById('editor-area').classList.add('flex');
 
                 await renderPage(pageNum);
-                await renderSidebar(); 
-            } catch (e) { alert("Error: " + e.message); console.error(e); }
+                await renderSidebar();
+                showToast('PDF loaded successfully!', 'success');
+            } catch (e) { 
+                showToast('Error loading PDF: ' + e.message, 'error');
+                console.error(e); 
+            }
         }
 
         async function renderPage(num) {
@@ -364,7 +528,10 @@
             document.getElementById('page-info-display').textContent = `Page ${num} / ${totalPages}`;
             document.querySelectorAll('.thumb-item').forEach(el => el.classList.remove('page-thumb-active'));
             const activeThumb = document.getElementById(`thumb-${num}`);
-            if(activeThumb) activeThumb.classList.add('page-thumb-active');
+            if(activeThumb) {
+                activeThumb.classList.add('page-thumb-active');
+                activeThumb.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
 
             const loadingTask = pdfjsLib.getDocument({data: pdfBytes.slice()});
             const doc = await loadingTask.promise;
@@ -398,7 +565,7 @@
                 } else if (ann.type === 'path') {
                     overlayCtx.beginPath();
                     overlayCtx.strokeStyle = ann.color;
-                    overlayCtx.lineWidth = 2;
+                    overlayCtx.lineWidth = ann.lineWidth || 2;
                     overlayCtx.moveTo(ann.path[0].x, ann.path[0].y);
                     for(let i=1; i<ann.path.length; i++) overlayCtx.lineTo(ann.path[i].x, ann.path[i].y);
                     overlayCtx.stroke();
@@ -433,7 +600,7 @@
                 if (isSelected) {
                     overlayCtx.save();
                     overlayCtx.strokeStyle = '#3b82f6'; 
-                    overlayCtx.lineWidth = 1;
+                    overlayCtx.lineWidth = 2;
                     overlayCtx.setLineDash([5, 3]);
                     const pad = 4;
                     overlayCtx.strokeRect(ann.x - pad, ann.y - pad, ann.w + pad*2, ann.h + pad*2);
@@ -442,7 +609,7 @@
                     // Resize Handle (Bottom-Right)
                     if(ann.type === 'image' || ann.type === 'stamp') {
                         overlayCtx.fillStyle = '#3b82f6';
-                        overlayCtx.fillRect(ann.x + ann.w, ann.y + ann.h, 8, 8);
+                        overlayCtx.fillRect(ann.x + ann.w - 4, ann.y + ann.h - 4, 8, 8);
                     }
                     
                     overlayCtx.restore();
@@ -461,16 +628,15 @@
                 if (selectedAnnIndex !== -1) {
                     const ann = annotations[selectedAnnIndex];
                     if (ann.page === pageNum && (ann.type === 'image' || ann.type === 'stamp')) {
-                        const handleSize = 10;
-                        if (x >= ann.x + ann.w && x <= ann.x + ann.w + handleSize &&
-                            y >= ann.y + ann.h && y <= ann.y + ann.h + handleSize) {
+                        const handleSize = 12;
+                        if (x >= ann.x + ann.w - 4 && x <= ann.x + ann.w + 8 &&
+                            y >= ann.y + ann.h - 4 && y <= ann.y + ann.h + 8) {
                             isResizing = true;
                             dragStart = {x, y};
-                            // Store initial size for ratio calculation
                             ann.origW = ann.w;
                             ann.origH = ann.h;
                             ann.ratio = ann.w / ann.h;
-                            return; // Stop processing dragging
+                            return;
                         }
                     }
                 }
@@ -496,10 +662,12 @@
             } else if (currentMode === 'text') {
                 startTextInput(x, y);
             } else if (currentMode === 'draw') {
+                saveState();
                 isDragging = true; 
-                annotations.push({ page: pageNum, type: 'path', color: inputs.pen.value, path: [{x, y}] });
+                annotations.push({ page: pageNum, type: 'path', color: inputs.pen.value, lineWidth: parseInt(inputs.penWidth.value), path: [{x, y}] });
                 selectedAnnIndex = -1;
             } else if (currentMode === 'whiteout') {
+                saveState();
                 const s = parseInt(inputs.eraser.value);
                 annotations.push({ page: pageNum, type: 'rect', x: x - s/2, y: y - s/2, w: s, h: s, color: 'white' });
                 redrawOverlay();
@@ -517,14 +685,13 @@
             if (currentMode === 'cursor' && isResizing && selectedAnnIndex !== -1) {
                 const ann = annotations[selectedAnnIndex];
                 const newW = x - ann.x;
-                const newH = newW / ann.ratio; // Maintain aspect ratio
+                const newH = newW / ann.ratio;
                 
-                if (newW > 20 && newH > 20) { // Min size
+                if (newW > 20 && newH > 20) {
                     ann.w = newW;
                     ann.h = newH;
                 }
                 redrawOverlay();
-                // Cursor style
                 overlay.style.cursor = 'nwse-resize';
                 return;
             }
@@ -552,8 +719,9 @@
             if(currentMode === 'cursor') {
                 if(selectedAnnIndex !== -1) {
                     const ann = annotations[selectedAnnIndex];
-                    if (x >= ann.x + ann.w && x <= ann.x + ann.w + 10 &&
-                        y >= ann.y + ann.h && y <= ann.y + ann.h + 10) {
+                    if ((ann.type === 'image' || ann.type === 'stamp') &&
+                        x >= ann.x + ann.w - 4 && x <= ann.x + ann.w + 8 &&
+                        y >= ann.y + ann.h - 4 && y <= ann.y + ann.h + 8) {
                         overlay.style.cursor = 'nwse-resize';
                     } else if (x >= ann.x && x <= ann.x + ann.w && y >= ann.y && y <= ann.y + ann.h) {
                         overlay.style.cursor = 'move';
@@ -572,7 +740,13 @@
             }
         });
 
-        overlay.addEventListener('mouseup', () => { isDragging = false; isResizing = false; });
+        overlay.addEventListener('mouseup', () => { 
+            if (isDragging && currentMode === 'cursor' && selectedAnnIndex !== -1) {
+                saveState();
+            }
+            isDragging = false; 
+            isResizing = false; 
+        });
 
         overlay.addEventListener('dblclick', (e) => {
             if (currentMode === 'cursor' && selectedAnnIndex !== -1) {
@@ -581,30 +755,30 @@
             }
         });
 
-        window.addEventListener('keydown', (e) => {
-            if ((e.key === 'Delete' || e.key === 'Backspace') && selectedAnnIndex !== -1) {
-                if (textInputContainer.style.display === 'none') deleteSelectedAnnotation();
-            }
-        });
-
         // --- Toolbar & Edit Logic ---
         function updateToolbarForSelection() {
             const ann = selectedAnnIndex !== -1 ? annotations[selectedAnnIndex] : null;
             document.querySelectorAll('[id^="prop-"]').forEach(el => { el.classList.remove('flex'); el.classList.add('hidden'); });
 
-            if (currentMode === 'cursor' && ann && ann.type === 'text') {
-                const el = document.getElementById('prop-text');
-                el.classList.remove('hidden'); el.classList.add('flex');
-                inputs.font.value = ann.font;
-                inputs.size.value = Math.round(ann.size / pdfScale);
-                inputs.color.value = ann.color;
-                document.getElementById('btn-delete-text').classList.remove('hidden');
+            if (currentMode === 'cursor' && ann) {
+                if (ann.type === 'text') {
+                    const el = document.getElementById('prop-text');
+                    el.classList.remove('hidden'); el.classList.add('flex');
+                    inputs.font.value = ann.font;
+                    inputs.size.value = Math.round(ann.size / pdfScale);
+                    inputs.color.value = ann.color;
+                    document.getElementById('btn-delete-text').classList.remove('hidden');
+                } else if (ann.type === 'stamp' && ann.subtype === 'standard_stamp') {
+                    const el = document.getElementById('prop-stamp');
+                    el.classList.remove('hidden'); el.classList.add('flex');
+                    inputs.stampColor.value = ann.color;
+                }
             } else {
                 const propId = `prop-${currentMode}`;
                 if(document.getElementById(propId)) {
                     document.getElementById(propId).classList.remove('hidden');
                     document.getElementById(propId).classList.add('flex');
-                    document.getElementById('btn-delete-text').classList.add('hidden');
+                    document.getElementById('btn-delete-text')?.classList.add('hidden');
                 } else {
                     document.getElementById('prop-default').classList.remove('hidden');
                     document.getElementById('prop-default').classList.add('flex');
@@ -616,6 +790,7 @@
             if (selectedAnnIndex === -1) return;
             const ann = annotations[selectedAnnIndex];
             if (ann.type === 'text') {
+                saveState();
                 ann.font = inputs.font.value;
                 ann.size = parseInt(inputs.size.value) * pdfScale;
                 ann.color = inputs.color.value;
@@ -623,12 +798,24 @@
             }
         }
 
+        function updateSelectedStampProp() {
+            if (selectedAnnIndex === -1) return;
+            const ann = annotations[selectedAnnIndex];
+            if (ann.type === 'stamp' && ann.subtype === 'standard_stamp') {
+                saveState();
+                ann.color = inputs.stampColor.value;
+                redrawOverlay();
+            }
+        }
+
         function deleteSelectedAnnotation() {
             if(selectedAnnIndex !== -1) {
+                saveState();
                 annotations.splice(selectedAnnIndex, 1);
                 selectedAnnIndex = -1;
                 updateToolbarForSelection();
                 redrawOverlay();
+                showToast('Annotation deleted', 'info');
             }
         }
 
@@ -655,6 +842,7 @@
             if (textInputContainer.style.display === 'none') return;
             const content = floatingTextarea.value.trim();
             if (content) {
+                saveState();
                 const baseSize = parseInt(inputs.size.value) * pdfScale;
                 if (editingAnnIndex !== -1) {
                     const ann = annotations[editingAnnIndex];
@@ -668,6 +856,7 @@
                 }
                 redrawOverlay();
             } else if (editingAnnIndex !== -1) {
+                saveState();
                 annotations.splice(editingAnnIndex, 1);
                 redrawOverlay();
             }
@@ -678,25 +867,27 @@
             textInputContainer.style.display = 'none'; floatingTextarea.value = ''; editingAnnIndex = -1;
         }
 
-        // --- Stamps (Updated UI Logic) ---
+        // --- Stamps ---
         function toggleStampMenu() {
             document.getElementById('stamp-menu').classList.toggle('hidden');
         }
         window.onclick = function(e) {
-            // Close if clicking outside the stamp button wrapper
             if (!e.target.closest('#btn-stamp') && !e.target.closest('#stamp-menu')) {
                 document.getElementById('stamp-menu').classList.add('hidden');
             }
         }
 
         function addStamp(text, color) {
+            saveState();
             const w = 150 * pdfScale; const h = 50 * pdfScale;
             const x = (canvas.width / 2) - (w/2); const y = (canvas.height / 2) - (h/2);
             annotations.push({ page: pageNum, type: 'stamp', subtype: 'standard_stamp', x: x, y: y, w: w, h: h, content: text, color: color });
             redrawOverlay();
             setMode('cursor'); 
             selectedAnnIndex = annotations.length - 1;
-            document.getElementById('stamp-menu').classList.add('hidden'); // Close menu
+            updateToolbarForSelection();
+            document.getElementById('stamp-menu').classList.add('hidden');
+            showToast('Stamp added', 'success');
         }
 
         function handleStampUpload(e) {
@@ -707,7 +898,7 @@
                 img.onload = () => {
                     pendingImage = img;
                     setMode('place_image');
-                    alert("Click on the PDF area to place Stamp.");
+                    showToast('Click on PDF to place stamp', 'info');
                     document.getElementById('stamp-menu').classList.add('hidden');
                 };
                 img.src = ev.target.result;
@@ -721,7 +912,7 @@
             if(textInputContainer.style.display === 'block') finalizeTextInput();
             
             document.querySelectorAll('#toolbar button').forEach(btn => btn.classList.remove('tool-active'));
-            if(mode !== 'stamp' && document.getElementById(`btn-${mode}`)) {
+            if(mode !== 'stamp' && mode !== 'place_image' && document.getElementById(`btn-${mode}`)) {
                 document.getElementById(`btn-${mode}`).classList.add('tool-active');
             }
 
@@ -730,49 +921,61 @@
 
             if (mode === 'text') overlay.style.cursor = 'text';
             else if (mode === 'draw' || mode === 'whiteout') overlay.style.cursor = 'crosshair';
+            else if (mode === 'place_image') overlay.style.cursor = 'crosshair';
             else overlay.style.cursor = 'default';
+
+            // Update hint
+            const hints = {
+                cursor: 'Cursor Mode: Drag to move. Drag blue corner to resize. Double click text to edit.',
+                text: 'Text Mode: Click to add text.',
+                draw: 'Draw Mode: Click and drag to draw.',
+                whiteout: 'Eraser Mode: Click to erase.',
+                place_image: 'Image Mode: Click to place image.'
+            };
+            document.getElementById('tool-hint').textContent = hints[mode] || '';
         }
         
         function getCanvasFont(name) { return name === 'Times-Roman' ? 'serif' : name === 'Courier' ? 'monospace' : 'sans-serif'; }
 
-        // --- Sidebar & Save (Existing) ---
+        // --- Navigation ---
+        function nextPage() {
+            if (pageNum < totalPages) renderPage(pageNum + 1);
+        }
+
+        function prevPage() {
+            if (pageNum > 1) renderPage(pageNum - 1);
+        }
+
+        // --- Sidebar & Save ---
         async function renderSidebar(){
              const container = document.getElementById('thumbnail-container'); container.innerHTML = ''; 
              const doc = await pdfjsLib.getDocument({data: pdfBytes.slice()}).promise;
              for(let i=1; i<=totalPages; i++){
-                 // Sidebar Item Wrapper
                  const d=document.createElement('div'); 
                  d.className='thumb-item bg-white p-2 rounded border border-gray-200 cursor-pointer mb-2 relative group'; 
                  d.id=`thumb-${i}`; 
                  d.onclick=(e)=>{
-                     if(e.target.closest('button')) return; // ignore if button clicked
+                     if(e.target.closest('button')) return;
                      renderPage(i);
                  };
 
-                 // Canvas Thumbnail
                  const c=document.createElement('canvas'); 
                  c.className='w-full border mb-1'; 
                  d.appendChild(c);
 
-                 // Controls Container (Page Num + Buttons)
                  const controls = document.createElement('div');
                  controls.className = "flex justify-between items-center px-1";
-
-                 // Page Number
                  controls.innerHTML += `<div class='text-xs font-bold text-gray-500'>Page ${i}</div>`;
                  
-                 // Button Group (Hidden by default, shown on hover/group)
                  const btnGroup = document.createElement('div');
                  btnGroup.className = "flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200";
 
-                 // Rotate Button
                  const btnRot = document.createElement('button');
                  btnRot.className = "p-1 hover:bg-blue-100 rounded text-blue-600 transition";
                  btnRot.title = "Rotate";
                  btnRot.innerHTML = `<i data-lucide="rotate-cw" class="w-3 h-3"></i>`;
                  btnRot.onclick = () => rotateSpecificPage(i);
 
-                 // Delete Button
                  const btnDel = document.createElement('button');
                  btnDel.className = "p-1 hover:bg-red-100 rounded text-red-600 transition";
                  btnDel.title = "Delete";
@@ -786,28 +989,108 @@
                  d.appendChild(controls);
                  container.appendChild(d);
 
-                 // Render thumbnail content
                  doc.getPage(i).then(p=>{const v=p.getViewport({scale:0.2});c.width=v.width;c.height=v.height;p.render({canvasContext:c.getContext('2d'),viewport:v})});
              }
              lucide.createIcons();
         }
         
-        async function handleFileUpload(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=async(ev)=>{pdfBytes=new Uint8Array(ev.target.result);await initPdf();};r.readAsArrayBuffer(f);}
-        async function zoomIn(){if(pdfScale<3){pdfScale+=0.25;updateZoomDisplay();await renderPage(pageNum);}}
-        async function zoomOut(){if(pdfScale>0.5){pdfScale-=0.25;updateZoomDisplay();await renderPage(pageNum);}}
-        function updateZoomDisplay(){zoomDisplay.textContent=Math.round(pdfScale*100)+'%';}
-        function toggleSidebar(){isSidebarOpen=!isSidebarOpen;sidebarPanel.classList.toggle('hidden');sidebarPanel.classList.toggle('flex');}
+        async function handleFileUpload(e){
+            const f=e.target.files[0];
+            if(!f) return;
+            const r=new FileReader();
+            r.onload=async(ev)=>{
+                pdfBytes=new Uint8Array(ev.target.result);
+                await initPdf();
+            };
+            r.readAsArrayBuffer(f);
+        }
+        
+        async function zoomIn(){
+            if(pdfScale<3){
+                pdfScale+=0.25;
+                updateZoomDisplay();
+                await renderPage(pageNum);
+            }
+        }
+        
+        async function zoomOut(){
+            if(pdfScale>0.5){
+                pdfScale-=0.25;
+                updateZoomDisplay();
+                await renderPage(pageNum);
+            }
+        }
+        
+        function updateZoomDisplay(){
+            zoomDisplay.textContent=Math.round(pdfScale*100)+'%';
+        }
+        
+        function toggleSidebar(){
+            isSidebarOpen=!isSidebarOpen;
+            sidebarPanel.classList.toggle('hidden');
+            sidebarPanel.classList.toggle('flex');
+        }
 
-        function openSignatureModal(){document.getElementById('signature-modal').classList.remove('hidden');const c=document.getElementById('signature-pad');c.width=c.offsetWidth;c.height=c.offsetHeight;signaturePad=new SignaturePad(c,{backgroundColor:'rgba(0,0,0,0)'});}
-        function closeSignatureModal(){document.getElementById('signature-modal').classList.add('hidden');}
-        function clearSignature(){signaturePad.clear();}
-        function saveSignature(){if(signaturePad.isEmpty())return;const img=new Image();img.onload=()=>{pendingImage=img;closeSignatureModal();setMode('place_image'); alert("Click on the PDF area to place Signature.");};img.src=signaturePad.toDataURL();}
-        function handleImageUpload(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=(ev)=>{const img=new Image();img.onload=()=>{pendingImage=img;setMode('place_image'); alert("Click on the PDF area to place Image.");};img.src=ev.target.result;};r.readAsDataURL(f);e.target.value='';}
+        function openSignatureModal(){
+            document.getElementById('signature-modal').classList.remove('hidden');
+            const c=document.getElementById('signature-pad');
+            c.width=c.offsetWidth;
+            c.height=c.offsetHeight;
+            signaturePad=new SignaturePad(c,{backgroundColor:'rgba(0,0,0,0)'});
+        }
+        
+        function closeSignatureModal(){
+            document.getElementById('signature-modal').classList.add('hidden');
+        }
+        
+        function clearSignature(){
+            signaturePad.clear();
+        }
+        
+        function saveSignature(){
+            if(signaturePad.isEmpty()) return;
+            const img=new Image();
+            img.onload=()=>{
+                pendingImage=img;
+                closeSignatureModal();
+                setMode('place_image');
+                showToast('Click on PDF to place signature', 'info');
+            };
+            img.src=signaturePad.toDataURL();
+        }
+        
+        function handleImageUpload(e){
+            const f=e.target.files[0];
+            if(!f) return;
+            const r=new FileReader();
+            r.onload=(ev)=>{
+                const img=new Image();
+                img.onload=()=>{
+                    pendingImage=img;
+                    setMode('place_image');
+                    showToast('Click on PDF to place image', 'info');
+                };
+                img.src=ev.target.result;
+            };
+            r.readAsDataURL(f);
+            e.target.value='';
+        }
+        
         function placePendingImage(x,y){
+            saveState();
             let w=pendingImage.width, h=pendingImage.height, max=200*pdfScale;
-            if(w>max||h>max){const r=w/h;if(w>h){w=max;h=w/r;}else{h=max;w=h*r;}}
+            if(w>max||h>max){
+                const r=w/h;
+                if(w>h){w=max;h=w/r;}
+                else{h=max;w=h*r;}
+            }
             annotations.push({page:pageNum,type:'image',x:x-w/2,y:y-h/2,w:w,h:h,dataUrl:pendingImage.src});
-            redrawOverlay();pendingImage=null;setMode('cursor');selectedAnnIndex=annotations.length-1;
+            redrawOverlay();
+            pendingImage=null;
+            setMode('cursor');
+            selectedAnnIndex=annotations.length-1;
+            updateToolbarForSelection();
+            showToast('Image placed', 'success');
         }
         
         // Page Operations
@@ -828,6 +1111,7 @@
             await renderPage(pageNum);
             await renderSidebar();
             toggleLoader(false);
+            showToast('Blank page inserted', 'success');
         }
 
         function promptInsertPdf() {
@@ -871,23 +1155,40 @@
                 pageNum = insertAfter + 1;
                 await renderPage(pageNum);
                 await renderSidebar();
-                alert(`Successfully inserted ${indices.length} pages.`);
-            } catch (err) { alert("Failed to insert PDF: " + err.message); }
+                showToast(`Successfully inserted ${indices.length} pages`, 'success');
+            } catch (err) { 
+                showToast('Failed to insert PDF: ' + err.message, 'error');
+            }
             toggleLoader(false); event.target.value = ''; 
         }
 
-        async function updatePdfBytes() { totalPages = pdfDoc.getPageCount(); pdfBytes = await pdfDoc.save(); }
+        async function updatePdfBytes() { 
+            totalPages = pdfDoc.getPageCount(); 
+            pdfBytes = await pdfDoc.save(); 
+        }
+        
         async function rotateSpecificPage(i) {
             toggleLoader(true, "Rotating..."); 
-            // Use correct case here
-            const p = pdfDoc.getPage(i-1); p.setRotation(degrees(p.getRotation().angle+90));
-            await updatePdfBytes(); if(pageNum===i) await renderPage(i); await renderSidebar(); toggleLoader(false);
+            const p = pdfDoc.getPage(i-1); 
+            p.setRotation(degrees(p.getRotation().angle+90));
+            await updatePdfBytes(); 
+            if(pageNum===i) await renderPage(i); 
+            await renderSidebar(); 
+            toggleLoader(false);
+            showToast('Page rotated', 'success');
         }
+        
         async function deleteSpecificPage(i) {
-            if(totalPages<=1) return alert("Cannot delete the only page.");
+            if(totalPages<=1) return showToast('Cannot delete the only page', 'error');
             if(!confirm(`Delete page ${i}?`)) return;
-            toggleLoader(true, "Deleting..."); pdfDoc.removePage(i-1); if(pageNum>=i) pageNum=Math.max(1, pageNum-1);
-            await updatePdfBytes(); await renderPage(pageNum); await renderSidebar(); toggleLoader(false);
+            toggleLoader(true, "Deleting..."); 
+            pdfDoc.removePage(i-1); 
+            if(pageNum>=i) pageNum=Math.max(1, pageNum-1);
+            await updatePdfBytes(); 
+            await renderPage(pageNum); 
+            await renderSidebar(); 
+            toggleLoader(false);
+            showToast('Page deleted', 'success');
         }
         
         function toggleLoader(show, text="Processing...") {
@@ -895,12 +1196,19 @@
             if(text) document.getElementById('loading-text').textContent = text;
         }
 
+        // Helper to convert hex color to RGB object
+        function hexToRgb(hex) {
+            const r = parseInt(hex.slice(1, 3), 16) / 255;
+            const g = parseInt(hex.slice(3, 5), 16) / 255;
+            const b = parseInt(hex.slice(5, 7), 16) / 255;
+            return { r, g, b };
+        }
+
         async function savePdf() {
             if (!pdfDoc) return;
             toggleLoader(true, "Saving PDF...");
             
             try {
-                // We re-load the doc from bytes to ensure fresh start
                 const pdfDocSave = await PDFDocument.load(pdfBytes);
                 const fontRef = { 
                     'Helvetica': await pdfDocSave.embedFont(StandardFonts.Helvetica), 
@@ -913,65 +1221,89 @@
                     if(ann.page > pages.length) continue;
                     const page = pages[ann.page - 1];
                     const { width, height } = page.getSize();
-                    // Map view coords to PDF coords
-                    // Note: canvas dimensions (width/height) are scaled by pdfScale
-                    // So we must use scale factor relative to current view or recalculate
-                    // Simplest: use ratio of PDF Page Width to current Canvas Width (which is based on pdfScale)
-                    
-                    // Actually, we need to know what 'ann.x' means. It is in canvas pixels at current zoom?
-                    // No, usually drag/drop updates X/Y in current canvas coordinates.
-                    // But if user zooms, we re-render. Does ann.x scale? 
-                    // Current logic: we DON'T scale ann.x/y when zooming in current code (we should have, but simpler to just map relative)
-                    // Wait, if I zoom in, canvas gets bigger. My ann.x stays 100. So it moves to the left relative to content.
-                    // THIS IS A BUG in zoom logic generally, but assuming user didn't zoom while editing or we fix coordinate space.
-                    
-                    // For now, let's assume ann.x is relative to the canvas width AT THE TIME OF EDITING.
-                    // To make it robust: 
-                    // Let's assume ann.x / canvas.width is the ratio X position.
                     
                     const scaleX = width / canvas.width; 
                     const scaleY = height / canvas.height;
                     const pdfX = ann.x * scaleX; 
-                    const pdfY = height - (ann.y * scaleY); // PDF Y is from bottom
+                    const pdfY = height - (ann.y * scaleY);
 
                     if (ann.type === 'text') {
                         const fontSize = (ann.size * scaleY) * 0.8; 
-                        const r=parseInt(ann.color.slice(1,3),16)/255; const g=parseInt(ann.color.slice(3,5),16)/255; const b=parseInt(ann.color.slice(5,7),16)/255;
-                        page.drawText(ann.content, { x:pdfX, y:pdfY-fontSize, size:fontSize, font:fontRef[ann.font], color:rgb(r,g,b) });
+                        const { r, g, b } = hexToRgb(ann.color);
+                        page.drawText(ann.content, { 
+                            x: pdfX, 
+                            y: pdfY - fontSize, 
+                            size: fontSize, 
+                            font: fontRef[ann.font], 
+                            color: rgb(r, g, b) 
+                        });
                     } else if (ann.type === 'rect') {
-                        page.drawRectangle({ x:pdfX, y:pdfY-(ann.h*scaleY), width:ann.w*scaleX, height:ann.h*scaleY, color:rgb(1,1,1) });
+                        page.drawRectangle({ 
+                            x: pdfX, 
+                            y: pdfY - (ann.h * scaleY), 
+                            width: ann.w * scaleX, 
+                            height: ann.h * scaleY, 
+                            color: rgb(1, 1, 1) 
+                        });
                     } else if (ann.type === 'image' || ann.type === 'stamp') {
                         if(ann.subtype === 'standard_stamp') {
-                             const r=ann.color==='green'?0:(ann.color==='red'?1:0.5); const g=ann.color==='green'?1:0; const b=0; 
-                             const col = ann.color==='green'?rgb(0,0.5,0) : (ann.color==='red'?rgb(0.8,0,0) : rgb(0.5,0.5,0.5));
-                             page.drawRectangle({ x:pdfX, y:pdfY-(ann.h*scaleY), width:ann.w*scaleX, height:ann.h*scaleY, borderColor:col, borderWidth:3 });
-                             const txtSize = (ann.h*scaleY)*0.4;
-                             const font = await pdfDocSave.embedFont(StandardFonts.CourierBold);
-                             const txtW = font.widthOfTextAtSize(ann.content, txtSize);
-                             page.drawText(ann.content, { x: pdfX + (ann.w*scaleX - txtW)/2, y: pdfY-(ann.h*scaleY) + (ann.h*scaleY - txtSize)/2, size: txtSize, font: font, color: col });
+                            const { r, g, b } = hexToRgb(ann.color);
+                            const col = rgb(r, g, b);
+                            page.drawRectangle({ 
+                                x: pdfX, 
+                                y: pdfY - (ann.h * scaleY), 
+                                width: ann.w * scaleX, 
+                                height: ann.h * scaleY, 
+                                borderColor: col, 
+                                borderWidth: 3 
+                            });
+                            const txtSize = (ann.h * scaleY) * 0.4;
+                            const font = await pdfDocSave.embedFont(StandardFonts.CourierBold);
+                            const txtW = font.widthOfTextAtSize(ann.content, txtSize);
+                            page.drawText(ann.content, { 
+                                x: pdfX + (ann.w * scaleX - txtW) / 2, 
+                                y: pdfY - (ann.h * scaleY) + (ann.h * scaleY - txtSize) / 2, 
+                                size: txtSize, 
+                                font: font, 
+                                color: col 
+                            });
                         } else {
                             try {
                                 let imgEmbed; 
-                                if(ann.dataUrl.startsWith('data:image/png')) imgEmbed=await pdfDocSave.embedPng(ann.dataUrl); 
-                                else imgEmbed=await pdfDocSave.embedJpg(ann.dataUrl);
-                                page.drawImage(imgEmbed, { x:pdfX, y:pdfY-(ann.h*scaleY), width:ann.w*scaleX, height:ann.h*scaleY });
+                                if(ann.dataUrl.startsWith('data:image/png')) 
+                                    imgEmbed = await pdfDocSave.embedPng(ann.dataUrl); 
+                                else 
+                                    imgEmbed = await pdfDocSave.embedJpg(ann.dataUrl);
+                                page.drawImage(imgEmbed, { 
+                                    x: pdfX, 
+                                    y: pdfY - (ann.h * scaleY), 
+                                    width: ann.w * scaleX, 
+                                    height: ann.h * scaleY 
+                                });
                             } catch(err) {
                                 console.error("Failed to embed image/signature", err);
-                                alert("Warning: One or more images/signatures failed to save. Please try again.");
+                                showToast("Warning: One or more images failed to save", 'error');
                             }
                         }
                     } else if (ann.type === 'path') {
-                         let r=0,g=0,b=1; if(ann.color.startsWith('#')){ r=parseInt(ann.color.slice(1,3),16)/255; g=parseInt(ann.color.slice(3,5),16)/255; b=parseInt(ann.color.slice(5,7),16)/255; }
-                         for(let i=1; i<ann.path.length; i++) {
-                             const s = ann.path[i-1]; const e = ann.path[i];
-                             page.drawLine({ start: { x: s.x*scaleX, y: height-(s.y*scaleY) }, end: { x: e.x*scaleX, y: height-(e.y*scaleY) }, thickness: 2, color: rgb(r, g, b) });
-                         }
+                        const { r, g, b } = hexToRgb(ann.color);
+                        for(let i = 1; i < ann.path.length; i++) {
+                            const s = ann.path[i-1]; 
+                            const e = ann.path[i];
+                            page.drawLine({ 
+                                start: { x: s.x * scaleX, y: height - (s.y * scaleY) }, 
+                                end: { x: e.x * scaleX, y: height - (e.y * scaleY) }, 
+                                thickness: (ann.lineWidth || 2) * scaleY, 
+                                color: rgb(r, g, b) 
+                            });
+                        }
                     }
                 }
                 const outBytes = await pdfDocSave.save();
                 download(outBytes, "Edited_WebPDF.pdf", "application/pdf");
+                showToast('PDF saved successfully!', 'success');
             } catch (e) {
-                alert("Error saving PDF: " + e.message);
+                showToast('Error saving PDF: ' + e.message, 'error');
                 console.error(e);
             }
             toggleLoader(false);
