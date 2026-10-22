@@ -10,6 +10,7 @@
     <script src="https://unpkg.com/downloadjs@1.4.7/download.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
@@ -141,6 +142,7 @@
                 <button onclick="document.getElementById('image-upload').click()" class="p-2 rounded hover:bg-white transition text-green-600" title="Insert Image (I)">
                     <i data-lucide="image" class="w-5 h-5"></i>
                 </button>
+                <button onclick="openOcrStudio()" class="p-2 rounded hover:bg-white transition text-indigo-600" title="OCR Studio"><i data-lucide="scan-text" class="w-5 h-5"></i></button>
                 <div class="w-px bg-gray-300 mx-2"></div>
                 <button onclick="undo()" id="btn-undo" class="p-2 rounded hover:bg-white transition text-gray-600 disabled:opacity-30" title="Undo (Ctrl+Z)" disabled>
                     <i data-lucide="undo" class="w-5 h-5"></i>
@@ -345,6 +347,24 @@
                 </div>
             </div>
         </div>
+    </div>
+
+
+    <div id="ocr-modal" class="fixed inset-0 z-40 hidden items-center justify-center bg-slate-950/60 backdrop-blur-sm p-3 md:p-6">
+      <section class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[92vh] flex flex-col overflow-hidden">
+        <header class="px-5 py-4 border-b flex justify-between items-center"><div class="flex gap-3 items-center"><div class="bg-indigo-100 text-indigo-700 p-2 rounded-xl"><i data-lucide="scan-text" class="w-6 h-6"></i></div><div><h2 class="text-lg font-bold">WebPDF OCR Studio</h2><p class="text-xs text-slate-500">Local-first recognition for scanned PDFs</p></div></div><button onclick="closeOcrStudio()" class="p-2 rounded-lg hover:bg-slate-100" aria-label="Close"><i data-lucide="x" class="w-5 h-5"></i></button></header>
+        <div class="p-5 overflow-y-auto space-y-4">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <label class="text-sm font-medium">Language<select id="ocr-language" class="mt-1 block w-full border rounded-lg px-3 py-2 bg-white"><option value="ind+eng">Indonesian + English</option><option value="eng">English</option><option value="ind">Indonesian</option></select></label>
+            <label class="text-sm font-medium">Pages<select id="ocr-pages-mode" class="mt-1 block w-full border rounded-lg px-3 py-2 bg-white"><option value="all">All pages</option><option value="current">Current page only</option></select></label>
+            <label class="text-sm font-medium">Render quality<select id="ocr-scale" class="mt-1 block w-full border rounded-lg px-3 py-2 bg-white"><option value="1.5">Fast (1.5×)</option><option value="2" selected>Balanced (2×)</option><option value="2.5">High detail (2.5×)</option></select></label>
+          </div>
+          <div class="rounded-xl border border-indigo-100 bg-indigo-50 p-3 text-sm"><strong>Privacy:</strong> the PDF is processed in your browser, not uploaded to a WebPDF server. The OCR engine and language data may be downloaded on first use. Cloud OCR is not enabled in this build.</div>
+          <div class="flex flex-wrap items-center gap-2"><button id="ocr-start" onclick="runLocalOcr()" class="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-semibold px-4 py-2 rounded-lg">Run OCR</button><button id="ocr-cancel" onclick="cancelLocalOcr()" disabled class="border px-4 py-2 rounded-lg disabled:opacity-40">Cancel</button><button id="ocr-download" onclick="downloadOcrText()" disabled class="border px-4 py-2 rounded-lg disabled:opacity-40">Export TXT</button><span id="ocr-status" class="text-sm text-slate-500" role="status" aria-live="polite">Open a PDF to begin.</span></div>
+          <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden"><div id="ocr-progress-bar" class="h-full bg-indigo-600" style="width:0%"></div></div>
+          <div class="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-4"><aside class="border rounded-xl p-3"><h3 class="font-semibold text-sm mb-2">Page results</h3><div id="ocr-page-results" class="space-y-2 text-sm text-slate-500">Results appear here.</div></aside><div class="border rounded-xl overflow-hidden"><div class="px-3 py-2 bg-slate-50 border-b flex justify-between"><h3 class="font-semibold text-sm">Recognized text (editable)</h3><span id="ocr-word-count" class="text-xs text-slate-500">0 words</span></div><textarea id="ocr-output" class="w-full min-h-[280px] p-4 font-mono text-sm resize-y focus:outline-none" placeholder="Recognized text appears here. Review it before official use." spellcheck="false"></textarea></div></div>
+        </div><footer class="px-5 py-3 border-t bg-slate-50 text-xs text-slate-500">OCR output is a transcription, not a guarantee of accuracy. Review names, dates, numbers, and tables.</footer>
+      </section>
     </div>
 
     <div id="loading-overlay" class="fixed inset-0 bg-white bg-opacity-90 hidden z-50 flex items-center justify-center flex-col">
@@ -1308,6 +1328,43 @@
             }
             toggleLoader(false);
         }
+
+        // --- Local-first OCR Studio MVP ---
+        let ocrWorker = null, ocrCancelled = false, ocrResults = new Map(), ocrActivePage = null;
+        function openOcrStudio(){const m=document.getElementById('ocr-modal');m.classList.remove('hidden');m.classList.add('flex');document.getElementById('ocr-status').textContent=pdfBytes?'Ready to recognize the open PDF.':'Open a PDF in WebPDF to begin.';lucide.createIcons();}
+        function closeOcrStudio(){if(document.getElementById('ocr-start').disabled){showToast('Cancel OCR before closing the studio.','info');return;}const m=document.getElementById('ocr-modal');m.classList.add('hidden');m.classList.remove('flex');}
+        function cancelLocalOcr(){ocrCancelled=true;document.getElementById('ocr-status').textContent='Cancellation requested…';document.getElementById('ocr-cancel').disabled=true;}
+        function ocrProgress(p,s){document.getElementById('ocr-progress-bar').style.width=Math.max(0,Math.min(100,p))+'%';if(s)document.getElementById('ocr-status').textContent=s;}
+        function updateOcrWordCount(){const t=document.getElementById('ocr-output').value;document.getElementById('ocr-word-count').textContent=((t.trim().match(/\S+/g)||[]).length)+' words';if(ocrActivePage&&ocrResults.has(ocrActivePage))ocrResults.get(ocrActivePage).text=t;}
+        document.getElementById('ocr-output').addEventListener('input',updateOcrWordCount);
+        function renderOcrPageList(){const box=document.getElementById('ocr-page-results');box.innerHTML='';if(!ocrResults.size){box.textContent='No page results yet.';return;}[...ocrResults.keys()].sort((a,b)=>a-b).forEach(n=>{const b=document.createElement('button');b.type='button';b.className='block w-full text-left border rounded-lg px-3 py-2 hover:bg-indigo-50 '+(n===ocrActivePage?'border-indigo-500 bg-indigo-50':'');const title=document.createElement('span');title.className='block font-semibold';title.textContent='Page '+n;const sub=document.createElement('span');sub.className='block text-xs text-slate-500';sub.textContent=((ocrResults.get(n).text.trim().match(/\S+/g)||[]).length)+' words';b.append(title,sub);b.onclick=()=>{if(ocrActivePage&&ocrResults.has(ocrActivePage))ocrResults.get(ocrActivePage).text=document.getElementById('ocr-output').value;ocrActivePage=n;document.getElementById('ocr-output').value=ocrResults.get(n).text;updateOcrWordCount();renderOcrPageList();};box.appendChild(b);});}
+        async function runLocalOcr(){
+          if(!pdfBytes)return showToast('Open a PDF before running OCR.','error');
+          if(!window.Tesseract||!window.pdfjsLib)return showToast('OCR dependency failed to load. Check connection and reload.','error');
+          const start=document.getElementById('ocr-start'),cancel=document.getElementById('ocr-cancel'),downloadBtn=document.getElementById('ocr-download');
+          start.disabled=true;cancel.disabled=false;downloadBtn.disabled=true;ocrCancelled=false;ocrResults=new Map();ocrActivePage=null;document.getElementById('ocr-output').value='';renderOcrPageList();ocrProgress(0,'Preparing OCR…');
+          let doc=null;
+          try{
+            const lang=document.getElementById('ocr-language').value,scale=Number(document.getElementById('ocr-scale').value);
+            doc=await pdfjsLib.getDocument({data:pdfBytes.slice()}).promise;
+            const targets=document.getElementById('ocr-pages-mode').value==='current'?[pageNum]:Array.from({length:doc.numPages},(_,i)=>i+1);
+            ocrWorker=await Tesseract.createWorker(lang,1,{logger:m=>{if(m.status==='loading language traineddata')ocrProgress(0,'Loading language data…');else if(m.status==='recognizing text')ocrProgress((Math.max(0,targets.indexOf(ocrActivePage))+m.progress)/targets.length*100,'Recognizing page '+ocrActivePage+' of '+targets.length+'…');}});
+            for(let i=0;i<targets.length;i++){
+              if(ocrCancelled)break;
+              const n=targets[i];ocrActivePage=n;const page=await doc.getPage(n),vp=page.getViewport({scale});
+              const c=document.createElement('canvas');c.width=Math.ceil(vp.width);c.height=Math.ceil(vp.height);
+              await page.render({canvasContext:c.getContext('2d'),viewport:vp}).promise;
+              if(ocrCancelled){c.width=0;c.height=0;break;}
+              const result=await ocrWorker.recognize(c);ocrResults.set(n,{text:result.data.text||'',confidence:result.data.confidence??null});
+              c.width=0;c.height=0;renderOcrPageList();document.getElementById('ocr-output').value=result.data.text||'';updateOcrWordCount();ocrProgress((i+1)/targets.length*100,'Completed page '+n+' of '+targets.length+'.');
+            }
+            if(ocrCancelled)ocrProgress(ocrResults.size/targets.length*100,'Cancelled. Completed page results retained.');else{ocrProgress(100,'OCR complete. Review the results.');showToast('OCR completed for '+ocrResults.size+' page(s).','success');}
+            downloadBtn.disabled=ocrResults.size===0;renderOcrPageList();
+          }catch(err){console.error(err);ocrProgress(0,'OCR failed: '+(err?.message||'Unknown error'));showToast('OCR failed. Check language data and available memory.','error');}
+          finally{if(ocrWorker){try{await ocrWorker.terminate();}catch(_){}ocrWorker=null;}start.disabled=false;cancel.disabled=true;if(doc){try{await doc.destroy();}catch(_){}}}
+        }
+        function downloadOcrText(){if(!ocrResults.size)return;if(ocrActivePage&&ocrResults.has(ocrActivePage))ocrResults.get(ocrActivePage).text=document.getElementById('ocr-output').value;const out=[...ocrResults.entries()].sort((a,b)=>a[0]-b[0]).map(([n,r])=>'===== PAGE '+n+' =====\n'+r.text.trim()).join('\n\n');const blob=new Blob([out],{type:'text/plain;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='WebPDF_OCR.txt';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+
     </script>
 </body>
 </html>
