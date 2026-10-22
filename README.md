@@ -47,3 +47,14 @@ The application is currently a single-page HTML implementation. New OCR behavior
 - Export TXT and confirm page separators and edited text are present.
 - Re-test existing annotation, signature, image, stamp, page insertion/deletion/rotation, and PDF export features.
 - Disable network access after dependencies have loaded: the PDF itself should remain local, but first-time OCR dependency/model loading may fail offline.
+
+
+### Searchable PDF export
+
+After OCR has completed, **Export Searchable PDF** adds an invisible text layer to the original PDF so recognized words can be selected and searched while the scanned page remains visually unchanged. The output is named `WebPDF_Searchable.pdf`.
+
+Important limitations:
+- OCR word placement is approximate and should be checked on rotated pages, multi-column layouts, tables, and unusual page sizes.
+- This is a text layer, not a correction of the scan image and not a secure redaction feature.
+- The editable TXT transcript and positioned PDF text layer are separate: editing the transcript does not reposition or rewrite the recognized word boxes in the PDF.
+- Verify the exported file in a separate PDF reader before relying on it. OCR output can contain errors.
