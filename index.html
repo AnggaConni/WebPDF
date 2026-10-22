@@ -360,7 +360,7 @@
             <label class="text-sm font-medium">Render quality<select id="ocr-scale" class="mt-1 block w-full border rounded-lg px-3 py-2 bg-white"><option value="1.5">Fast (1.5×)</option><option value="2" selected>Balanced (2×)</option><option value="2.5">High detail (2.5×)</option></select></label>
           </div>
           <div class="rounded-xl border border-indigo-100 bg-indigo-50 p-3 text-sm"><strong>Privacy:</strong> the PDF is processed in your browser, not uploaded to a WebPDF server. The OCR engine and language data may be downloaded on first use. Cloud OCR is not enabled in this build.</div>
-          <div class="flex flex-wrap items-center gap-2"><button id="ocr-start" onclick="runLocalOcr()" class="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-semibold px-4 py-2 rounded-lg">Run OCR</button><button id="ocr-cancel" onclick="cancelLocalOcr()" disabled class="border px-4 py-2 rounded-lg disabled:opacity-40">Cancel</button><button id="ocr-download" onclick="downloadOcrText()" disabled class="border px-4 py-2 rounded-lg disabled:opacity-40">Export TXT</button><span id="ocr-status" class="text-sm text-slate-500" role="status" aria-live="polite">Open a PDF to begin.</span></div>
+          <div class="flex flex-wrap items-center gap-2"><button id="ocr-start" onclick="runLocalOcr()" class="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-semibold px-4 py-2 rounded-lg">Run OCR</button><button id="ocr-cancel" onclick="cancelLocalOcr()" disabled class="border px-4 py-2 rounded-lg disabled:opacity-40">Cancel</button><button id="ocr-download" onclick="downloadOcrText()" disabled class="border px-4 py-2 rounded-lg disabled:opacity-40">Export TXT</button><button id="ocr-searchable" onclick="exportSearchablePdf()" disabled class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg disabled:opacity-40">Export Searchable PDF</button><span id="ocr-status" class="text-sm text-slate-500" role="status" aria-live="polite">Open a PDF to begin.</span></div>
           <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden"><div id="ocr-progress-bar" class="h-full bg-indigo-600" style="width:0%"></div></div>
           <div class="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-4"><aside class="border rounded-xl p-3"><h3 class="font-semibold text-sm mb-2">Page results</h3><div id="ocr-page-results" class="space-y-2 text-sm text-slate-500">Results appear here.</div></aside><div class="border rounded-xl overflow-hidden"><div class="px-3 py-2 bg-slate-50 border-b flex justify-between"><h3 class="font-semibold text-sm">Recognized text (editable)</h3><span id="ocr-word-count" class="text-xs text-slate-500">0 words</span></div><textarea id="ocr-output" class="w-full min-h-[280px] p-4 font-mono text-sm resize-y focus:outline-none" placeholder="Recognized text appears here. Review it before official use." spellcheck="false"></textarea></div></div>
         </div><footer class="px-5 py-3 border-t bg-slate-50 text-xs text-slate-500">OCR output is a transcription, not a guarantee of accuracy. Review names, dates, numbers, and tables.</footer>
@@ -1355,13 +1355,52 @@
               const c=document.createElement('canvas');c.width=Math.ceil(vp.width);c.height=Math.ceil(vp.height);
               await page.render({canvasContext:c.getContext('2d'),viewport:vp}).promise;
               if(ocrCancelled){c.width=0;c.height=0;break;}
-              const result=await ocrWorker.recognize(c);ocrResults.set(n,{text:result.data.text||'',confidence:result.data.confidence??null});
+              const result=await ocrWorker.recognize(c);ocrResults.set(n,{text:result.data.text||'',confidence:result.data.confidence??null,words:(result.data.words||[]).filter(w=>w.text&&w.text.trim()&&w.bbox).map(w=>({text:w.text.trim(),x0:w.bbox.x0,y0:w.bbox.y0,x1:w.bbox.x1,y1:w.bbox.y1,confidence:w.confidence??null})),renderScale:scale});
               c.width=0;c.height=0;renderOcrPageList();document.getElementById('ocr-output').value=result.data.text||'';updateOcrWordCount();ocrProgress((i+1)/targets.length*100,'Completed page '+n+' of '+targets.length+'.');
             }
             if(ocrCancelled)ocrProgress(ocrResults.size/targets.length*100,'Cancelled. Completed page results retained.');else{ocrProgress(100,'OCR complete. Review the results.');showToast('OCR completed for '+ocrResults.size+' page(s).','success');}
-            downloadBtn.disabled=ocrResults.size===0;renderOcrPageList();
+            downloadBtn.disabled=ocrResults.size===0;document.getElementById('ocr-searchable').disabled=ocrResults.size===0;renderOcrPageList();
           }catch(err){console.error(err);ocrProgress(0,'OCR failed: '+(err?.message||'Unknown error'));showToast('OCR failed. Check language data and available memory.','error');}
           finally{if(ocrWorker){try{await ocrWorker.terminate();}catch(_){}ocrWorker=null;}start.disabled=false;cancel.disabled=true;if(doc){try{await doc.destroy();}catch(_){}}}
+        }
+        async function exportSearchablePdf(){
+          if(!pdfBytes||!ocrResults.size)return;
+          const button=document.getElementById('ocr-searchable');
+          button.disabled=true;
+          let source=null;
+          try{
+            source=await pdfjsLib.getDocument({data:pdfBytes.slice()}).promise;
+            const out=await PDFDocument.load(pdfBytes);
+            const pages=out.getPages();
+            const font=await out.embedFont(StandardFonts.Helvetica);
+            let inserted=0, skipped=0;
+            for(const [pageNumber,result] of [...ocrResults.entries()].sort((a,b)=>a[0]-b[0])){
+              if(!result.words||!result.words.length){skipped++;continue;}
+              const pdfPage=pages[pageNumber-1];
+              if(!pdfPage){skipped++;continue;}
+              const sourcePage=await source.getPage(pageNumber);
+              const viewport=sourcePage.getViewport({scale:result.renderScale||2});
+              for(const word of result.words){
+                const p=viewport.convertToPdfPoint(word.x0,word.y1);
+                const height=Math.max(3,(word.y1-word.y0)/viewport.scale);
+                const size=Math.max(3,Math.min(48,height*0.82));
+                // Invisible rendering keeps the scanned page visually unchanged while adding selectable/searchable text.
+                pdfPage.drawText(word.text,{x:p[0],y:p[1],size,font,color:rgb(0,0,0),opacity:0});
+                inserted++;
+              }
+            }
+            if(!inserted){showToast('No OCR word boxes available. Run OCR again before exporting.','error');return;}
+            const bytes=await out.save();
+            const blob=new Blob([bytes],{type:'application/pdf'}),url=URL.createObjectURL(blob),a=document.createElement('a');
+            a.href=url;a.download='WebPDF_Searchable.pdf';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);
+            showToast('Searchable PDF exported ('+inserted+' text items). Verify search and selection in a PDF reader.','success');
+            ocrProgress(100,'Searchable PDF exported. Check text alignment and search in another PDF reader.');
+          }catch(err){
+            console.error(err);showToast('Searchable PDF export failed: '+(err?.message||'Unknown error'),'error');
+          }finally{
+            if(source){try{await source.destroy();}catch(_){}}
+            button.disabled=ocrResults.size===0;
+          }
         }
         function downloadOcrText(){if(!ocrResults.size)return;if(ocrActivePage&&ocrResults.has(ocrActivePage))ocrResults.get(ocrActivePage).text=document.getElementById('ocr-output').value;const out=[...ocrResults.entries()].sort((a,b)=>a[0]-b[0]).map(([n,r])=>'===== PAGE '+n+' =====\n'+r.text.trim()).join('\n\n');const blob=new Blob([out],{type:'text/plain;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='WebPDF_OCR.txt';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 
