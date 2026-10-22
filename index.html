@@ -1342,7 +1342,7 @@
           if(!pdfBytes)return showToast('Open a PDF before running OCR.','error');
           if(!window.Tesseract||!window.pdfjsLib)return showToast('OCR dependency failed to load. Check connection and reload.','error');
           const start=document.getElementById('ocr-start'),cancel=document.getElementById('ocr-cancel'),downloadBtn=document.getElementById('ocr-download');
-          start.disabled=true;cancel.disabled=false;downloadBtn.disabled=true;ocrCancelled=false;ocrResults=new Map();ocrActivePage=null;document.getElementById('ocr-output').value='';renderOcrPageList();ocrProgress(0,'Preparing OCR…');
+          start.disabled=true;cancel.disabled=false;downloadBtn.disabled=true;document.getElementById('ocr-searchable').disabled=true;ocrCancelled=false;ocrResults=new Map();ocrActivePage=null;document.getElementById('ocr-output').value='';renderOcrPageList();ocrProgress(0,'Preparing OCR…');
           let doc=null;
           try{
             const lang=document.getElementById('ocr-language').value,scale=Number(document.getElementById('ocr-scale').value);
